@@ -149,7 +149,7 @@ int64_t Nloop=1000;
                                     map(to:yv._odata[ :yv.size()])
 
       for(int64_t i=0;i<Nwarm;i++){
-     #pragma omp target teams distribute parallel for thread_limit(gpu_threads)
+     #pragma omp target spread teams distribute parallel for thread_limit(gpu_threads)
       for(int64_t s=0;s<vol;s++) {
         zv[s]=xv[s]*yv[s];
       }
@@ -157,12 +157,20 @@ int64_t Nloop=1000;
 
 
       double start=usecond();
+	  int numTasks; 
+	  int dev; 
       for(int64_t i=0;i<Nloop;i++){
-      #pragma omp target teams distribute parallel for thread_limit(gpu_threads)
-      for(int64_t s=0;s<vol;s++) {
+	      #pragma omp parallel for schedule(dynamic) 
+       for (i = 0 ; i < numTasks; i++) 
+       { 
+	  dev = rand()%numDevs;
+      #pragma omp target teams distribute parallel for spread_schedule(static, 4) thread_limit(gpu_threads) device(dev) 
+      for(int64_t s= (i/numTasks)*vol;s< ((i+1)/(numTasks)) *vol;s++) {
         zv[s]=xv[s]*yv[s];
+          }
+       }
       }
-      }
+	      
       double stop=usecond();
        #pragma omp target exit data map (from:zv._odata[ :zv.size()])
        #pragma omp target exit data map (delete:yv._odata[ :yv.size()])
